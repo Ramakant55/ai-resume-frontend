@@ -16,9 +16,7 @@ const RegisterSchema = Yup.object().shape({
     .min(6, 'Password must be at least 6 characters'),
   confirmPassword: Yup.string()
     .oneOf([Yup.ref('password'), null], 'Passwords must match')
-    .required('Confirm Password is required'),
-  role: Yup.string()
-    .required('Role is required')
+    .required('Confirm Password is required')
 });
 
 const RegisterPage = () => {
@@ -31,7 +29,7 @@ const RegisterPage = () => {
         name: values.name,
         email: values.email,
         password: values.password,
-        role: values.role
+        role: 'user' // Default role is always 'user'
       });
       // The redirect is handled in the register function in AuthContext
     } catch (error) {
@@ -60,7 +58,7 @@ const RegisterPage = () => {
         )}
 
         <Formik
-          initialValues={{ name: '', email: '', password: '', confirmPassword: '', role: '' }}
+          initialValues={{ name: '', email: '', password: '', confirmPassword: '' }}
           validationSchema={RegisterSchema}
           onSubmit={handleSubmit}
         >
@@ -131,31 +129,22 @@ const RegisterPage = () => {
               </div>
 
               <div>
-                <label htmlFor="role" className="block text-sm font-medium text-secondary-700">
-                  Role
-                </label>
-                <div className="mt-1">
-                  <Field
-                    as="select"
-                    id="role"
-                    name="role"
-                    className={`input w-full ${errors.role && touched.role ? 'border-red-300 focus:ring-red-500' : ''}`}
-                  >
-                    <option value="">Select a role</option>
-                    <option value="user">Job Seeker</option>
-                    <option value="admin">Employer/Admin</option>
-                  </Field>
-                  <ErrorMessage name="role" component="div" className="mt-1 text-sm text-red-600" />
-                </div>
-              </div>
-
-              <div>
                 <button
                   type="submit"
                   disabled={isSubmitting || loading}
-                  className="btn btn-primary w-full py-3"
+                  className="w-full btn btn-primary py-2 px-4 flex justify-center items-center"
                 >
-                  {isSubmitting || loading ? 'Creating account...' : 'Sign up'}
+                  {(isSubmitting || loading) ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    'Sign Up'
+                  )}
                 </button>
               </div>
             </Form>
@@ -166,7 +155,7 @@ const RegisterPage = () => {
           <p className="text-sm text-secondary-600">
             Already have an account?{' '}
             <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
-              Log in
+              Sign in
             </Link>
           </p>
         </div>

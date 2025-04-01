@@ -18,12 +18,15 @@ import JobDetailsPage from './pages/JobDetailsPage';
 import UserDashboardPage from './pages/user/DashboardPage';
 import UserApplicationsPage from './pages/user/ApplicationsPage';
 import UserProfilePage from './pages/user/ProfilePage';
+import PostJobPage from './pages/user/PostJobPage';
+import MyJobsPage from './pages/user/MyJobsPage';
 
 // Admin Pages
 import AdminDashboardPage from './pages/admin/DashboardPage';
 import AdminJobsPage from './pages/admin/JobsPage';
 import AdminApplicationsPage from './pages/admin/ApplicationsPage';
 import CreateJobPage from './pages/admin/CreateJobPage';
+import PendingJobsPage from './pages/admin/PendingJobsPage';
 
 // Protected Route Components
 const ProtectedRoute = ({ children, requireAdmin }) => {
@@ -84,6 +87,8 @@ const App = () => {
         <Route path="/dashboard" element={<UserDashboardPage />} />
         <Route path="/my-applications" element={<UserApplicationsPage />} />
         <Route path="/profile" element={<UserProfilePage />} />
+        <Route path="/post-job" element={<PostJobPage />} />
+        <Route path="/my-jobs" element={<MyJobsPage />} />
       </Route>
       
       {/* Admin Routes */}
@@ -96,6 +101,7 @@ const App = () => {
         <Route path="/admin/jobs" element={<AdminJobsPage />} />
         <Route path="/admin/applications" element={<AdminApplicationsPage />} />
         <Route path="/admin/create-job" element={<CreateJobPage />} />
+        <Route path="/admin/pending-jobs" element={<PendingJobsPage />} />
       </Route>
     </Routes>
   );

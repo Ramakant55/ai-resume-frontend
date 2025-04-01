@@ -10,62 +10,66 @@ const DashboardPage = () => {
     shortlisted: 0
   });
   const [recentApplications, setRecentApplications] = useState([]);
+  const [pendingJobs, setPendingJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null); // Track which job is being processed
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
         
-        // In a real implementation, you'd have specific endpoints for this data
-        // For now, we'll simulate the data
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('Authentication token not found. Please log in again.');
+        }
+        
+        // Set up headers for API requests
+        const config = {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        };
         
         // Fetch jobs
-        const jobsResponse = await axios.get('/api/jobs/get-jobs');
-        const totalJobs = jobsResponse.data.jobs?.length || 0;
+        const jobsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/jobs/get-jobs`);
+        const totalJobs = jobsResponse.data?.length || 0;
         
-        // Simulate applications data and stats
+        // Fetch pending jobs
+        const pendingJobsResponse = await axios.get(
+          `${import.meta.env.VITE_API_URL}/jobs/pending-jobs`,
+          config
+        );
+        setPendingJobs(pendingJobsResponse.data);
+        const pendingJobsCount = pendingJobsResponse.data?.length || 0;
+        
+        // Fetch applications
+        const applicationsResponse = await axios.get(
+          `${import.meta.env.VITE_API_URL}/applications/allapp`,
+          config
+        );
+        const totalApplications = applicationsResponse.data?.length || 0;
+        
+        // Count shortlisted applications
+        const shortlistedCount = applicationsResponse.data?.filter(
+          app => app.status && app.status.toLowerCase() === 'shortlisted'
+        ).length || 0;
+        
+        // Update stats
         setStats({
           totalJobs,
-          totalApplications: 24,
-          pendingReviews: 8,
-          shortlisted: 6
+          totalApplications,
+          pendingReviews: pendingJobsCount,
+          shortlisted: shortlistedCount
         });
         
-        // Simulate recent applications
-        setRecentApplications([
-          {
-            _id: '1',
-            applicantName: 'John Smith',
-            applicantEmail: 'john@example.com',
-            jobTitle: 'Frontend Developer',
-            company: 'TechCorp',
-            status: 'pending',
-            appliedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-            skills: ['React', 'JavaScript', 'CSS']
-          },
-          {
-            _id: '2',
-            applicantName: 'Sarah Johnson',
-            applicantEmail: 'sarah@example.com',
-            jobTitle: 'UX Designer',
-            company: 'DesignHub',
-            status: 'reviewing',
-            appliedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-            skills: ['Figma', 'UI/UX', 'Wireframing']
-          },
-          {
-            _id: '3',
-            applicantName: 'Michael Wong',
-            applicantEmail: 'michael@example.com',
-            jobTitle: 'Backend Developer',
-            company: 'DataTech',
-            status: 'shortlisted',
-            appliedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-            skills: ['Node.js', 'MongoDB', 'Express']
-          }
-        ]);
+        // Get recent applications
+        const recentApps = applicationsResponse.data
+          ?.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .slice(0, 3) || [];
+        setRecentApplications(recentApps);
+        
       } catch (err) {
         setError('Failed to fetch dashboard data. Please try again later.');
         console.error(err);
@@ -76,6 +80,43 @@ const DashboardPage = () => {
 
     fetchDashboardData();
   }, []);
+
+  // Handle job approval/rejection
+  const handleJobAction = async (jobId, status) => {
+    try {
+      setActionLoading(jobId);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found. Please log in again.');
+      }
+      
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/jobs/review`,
+        { jobId, status },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      // Update the local state to remove the processed job
+      setPendingJobs(prevJobs => prevJobs.filter(job => job._id !== jobId));
+      
+      // Update the pending reviews count in stats
+      setStats(prev => ({
+        ...prev,
+        pendingReviews: prev.pendingReviews - 1
+      }));
+      
+    } catch (err) {
+      console.error(`Error ${status} job:`, err);
+      setError(err.response?.data?.message || `Failed to ${status} job. Please try again.`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   // Format date to be more readable
   const formatDate = (dateString) => {
@@ -161,7 +202,7 @@ const DashboardPage = () => {
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <h2 className="text-sm font-medium text-secondary-500">Pending Reviews</h2>
+                  <h2 className="text-sm font-medium text-secondary-500">Pending Job Reviews</h2>
                   <p className="text-2xl font-semibold text-secondary-900">{stats.pendingReviews}</p>
                 </div>
               </div>
@@ -200,141 +241,138 @@ const DashboardPage = () => {
                     <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <span className="ml-3 font-medium text-indigo-700">Review Applications</span>
+                <span className="ml-3 font-medium text-indigo-700">View Applications</span>
               </Link>
-              <Link to="/admin/jobs" className="flex items-center p-4 bg-secondary-50 rounded-lg hover:bg-secondary-100 transition-colors">
-                <div className="p-2 rounded-full bg-secondary-200 text-secondary-700">
+              <Link to="/admin/pending-jobs" className="flex items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
+                <div className="p-2 rounded-full bg-yellow-100 text-yellow-700">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <span className="ml-3 font-medium text-secondary-700">Manage Jobs</span>
+                <span className="ml-3 font-medium text-yellow-700">Review Pending Jobs</span>
               </Link>
             </div>
           </div>
-
-          {/* Recent Applications */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
-            <div className="p-6 border-b border-secondary-200">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-secondary-900">Recent Applications</h2>
-                <Link to="/admin/applications" className="text-primary-600 hover:text-primary-800 text-sm font-medium">
+          
+          {/* Pending Jobs Section */}
+          {pendingJobs.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+              <div className="p-6 border-b border-secondary-200 flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-secondary-900">Pending Job Approvals</h2>
+                <Link to="/admin/pending-jobs" className="text-primary-600 hover:text-primary-800 text-sm font-medium">
                   View all
                 </Link>
               </div>
+              
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-secondary-200">
+                  <thead className="bg-secondary-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Job Title</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Company</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Posted By</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Date</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-secondary-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-secondary-200">
+                    {pendingJobs.slice(0, 3).map((job) => (
+                      <tr key={job._id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-secondary-900">{job.title}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-secondary-600">{job.company}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-secondary-600">
+                            {job.createdBy?.name || 'Unknown User'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-secondary-600">{formatDate(job.createdAt)}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={() => handleJobAction(job._id, 'approved')}
+                            disabled={actionLoading === job._id}
+                            className="text-green-600 hover:text-green-900 mr-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {actionLoading === job._id ? 'Processing...' : 'Approve'}
+                          </button>
+                          <button
+                            onClick={() => handleJobAction(job._id, 'rejected')}
+                            disabled={actionLoading === job._id}
+                            className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {actionLoading === job._id ? 'Processing...' : 'Reject'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {pendingJobs.length > 3 && (
+                <div className="p-4 border-t border-secondary-200 text-center">
+                  <Link to="/admin/pending-jobs" className="text-primary-600 hover:text-primary-800 text-sm font-medium">
+                    View all {pendingJobs.length} pending jobs
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Recent Applications */}
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="p-6 border-b border-secondary-200 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-secondary-900">Recent Applications</h2>
+              <Link to="/admin/applications" className="text-primary-600 hover:text-primary-800 text-sm font-medium">
+                View all
+              </Link>
             </div>
             
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-secondary-200">
-                <thead className="bg-secondary-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                      Applicant
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                      Job Position
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                      Skills Match
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                      Applied On
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-secondary-200">
-                  {recentApplications.map((application) => (
-                    <tr key={application._id} className="hover:bg-secondary-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center">
-                            <span className="text-primary-700 font-medium">
-                              {application.applicantName.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-secondary-900">
-                              {application.applicantName}
-                            </div>
-                            <div className="text-sm text-secondary-500">
-                              {application.applicantEmail}
-                            </div>
-                          </div>
+            {recentApplications.length === 0 ? (
+              <div className="p-6 text-center text-secondary-600">
+                <p>No applications found.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-secondary-200">
+                {recentApplications.map((application) => (
+                  <div key={application._id} className="p-6">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                      <div>
+                        <h3 className="text-lg font-medium text-secondary-900">
+                          {application.jobId && typeof application.jobId === 'object' && application.jobId.title
+                            ? application.jobId.title
+                            : application.jobTitle || 'Job Title Unavailable'}
+                        </h3>
+                        <div className="mt-1">
+                          <span className="text-secondary-600">
+                            Applicant: {application.userId && typeof application.userId === 'object' 
+                              ? application.userId.name 
+                              : 'Unknown'}
+                          </span>
+                          <span className="mx-2 text-secondary-300">|</span>
+                          <span className="text-secondary-600">
+                            {application.jobId && typeof application.jobId === 'object' && application.jobId.company
+                              ? application.jobId.company
+                              : application.company || 'Company Unavailable'}
+                          </span>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-secondary-900">{application.jobTitle}</div>
-                        <div className="text-sm text-secondary-500">{application.company}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge status={application.status} />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex flex-wrap gap-1">
-                          {application.skills.map((skill, index) => (
-                            <span key={index} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-500">
-                        {formatDate(application.appliedDate)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-primary-600 hover:text-primary-900 mr-3">
-                          View
-                        </button>
-                        <button className="text-green-600 hover:text-green-900">
-                          Review
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* System Status */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-secondary-900 mb-4">System Status</h2>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <div className="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
-                  <span className="text-secondary-700">AI Resume Analysis</span>
-                </div>
-                <span className="text-sm text-green-600 font-medium">Operational</span>
+                        <p className="text-sm text-secondary-500 mt-1">
+                          Applied on {formatDate(application.createdAt || new Date())}
+                        </p>
+                      </div>
+                      <div className="mt-4 md:mt-0">
+                        <StatusBadge status={application.status || 'pending'} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <div className="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
-                  <span className="text-secondary-700">Job Matching Algorithm</span>
-                </div>
-                <span className="text-sm text-green-600 font-medium">Operational</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <div className="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
-                  <span className="text-secondary-700">API Services</span>
-                </div>
-                <span className="text-sm text-green-600 font-medium">Operational</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <div className="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
-                  <span className="text-secondary-700">Email Notifications</span>
-                </div>
-                <span className="text-sm text-green-600 font-medium">Operational</span>
-              </div>
-            </div>
+            )}
           </div>
         </>
       )}
