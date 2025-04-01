@@ -6,6 +6,9 @@ import { useAuth } from './context/AuthContext';
 import MainLayout from './components/layouts/MainLayout';
 import AdminLayout from './components/layouts/AdminLayout';
 
+// Components
+import ScrollToTop from './components/ScrollToTop';
+
 // Public Pages
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/auth/LoginPage';
@@ -67,43 +70,46 @@ const App = () => {
   }, [isAuthenticated, user, loading]);
 
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route element={<MainLayout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/verify-otp" element={<VerifyOtpPage />} />
-        <Route path="/jobs" element={<JobsPage />} />
-        <Route path="/jobs/:id" element={<JobDetailsPage />} />
-      </Route>
-      
-      {/* User Routes */}
-      <Route element={
-        <ProtectedRoute>
-          <MainLayout />
-        </ProtectedRoute>
-      }>
-        <Route path="/dashboard" element={<UserDashboardPage />} />
-        <Route path="/my-applications" element={<UserApplicationsPage />} />
-        <Route path="/profile" element={<UserProfilePage />} />
-        <Route path="/post-job" element={<PostJobPage />} />
-        <Route path="/my-jobs" element={<MyJobsPage />} />
-      </Route>
-      
-      {/* Admin Routes */}
-      <Route element={
-        <ProtectedRoute requireAdmin={true}>
-          <AdminLayout />
-        </ProtectedRoute>
-      }>
-        <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-        <Route path="/admin/jobs" element={<AdminJobsPage />} />
-        <Route path="/admin/applications" element={<AdminApplicationsPage />} />
-        <Route path="/admin/create-job" element={<CreateJobPage />} />
-        <Route path="/admin/pending-jobs" element={<PendingJobsPage />} />
-      </Route>
-    </Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
+        {/* Public Routes */}
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-otp" element={<VerifyOtpPage />} />
+          <Route path="/jobs" element={<JobsPage />} />
+          <Route path="/jobs/:id" element={<JobDetailsPage />} />
+        </Route>
+        
+        {/* User Routes */}
+        <Route element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }>
+          <Route path="/dashboard" element={<UserDashboardPage />} />
+          <Route path="/my-applications" element={<UserApplicationsPage />} />
+          <Route path="/profile" element={<UserProfilePage />} />
+          <Route path="/post-job" element={<PostJobPage />} />
+          <Route path="/my-jobs" element={<MyJobsPage />} />
+        </Route>
+        
+        {/* Admin Routes */}
+        <Route element={
+          <ProtectedRoute requireAdmin={true}>
+            <AdminLayout />
+          </ProtectedRoute>
+        }>
+          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+          <Route path="/admin/jobs" element={<AdminJobsPage />} />
+          <Route path="/admin/applications" element={<AdminApplicationsPage />} />
+          <Route path="/admin/create-job" element={<CreateJobPage />} />
+          <Route path="/admin/pending-jobs" element={<PendingJobsPage />} />
+        </Route>
+      </Routes>
+    </>
   );
 };
 

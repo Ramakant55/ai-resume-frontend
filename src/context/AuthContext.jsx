@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [otp, setOtp] = useState({ email: '', otp: '' });
+  const [otp, setOtp] = useState({ email: '', otpToken: '' });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -96,7 +96,8 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/signup`, userData);
-      setOtp({ email: userData.email });
+      // Save both email and otpToken
+      setOtp({ email: userData.email, otpToken: response.data.otpToken });
       toast.success('Registration successful! Please verify your OTP.');
       navigate('/verify-otp');
       return response.data;
@@ -113,7 +114,8 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/verify-otp`, { 
         email: otp.email,
-        otp: otpData.otp 
+        otp: otpData.otp,
+        otpToken: otp.otpToken
       });
       toast.success('OTP verification successful!');
       navigate('/login');
@@ -130,32 +132,52 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/login`, credentials);
-      const { token, user } = response.data;
+      const { token } = response.data;
       
       // Set token in local storage and axios headers
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
-      setUser(user);
-      setIsAuthenticated(true);
-      
-      // Show success message
-      toast.success('Login successful!');
-      
-      // Wait a short moment before redirecting to ensure state is updated
-      setTimeout(() => {
-        // Redirect based on user role - immediately after successful login
-        if (user && user.isAdmin) {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/dashboard');
-        }
-      }, 100);
+      // Fetch user data with the token
+      try {
+        const userResponse = await axios.get(`${import.meta.env.VITE_API_URL}/users/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const user = userResponse.data;
+        localStorage.setItem('user', JSON.stringify(user));
+        setUser(user);
+        setIsAuthenticated(true);
+        
+        // Show success message
+        toast.success('Login successful!');
+        
+        // Wait a short moment before redirecting to ensure state is updated
+        setTimeout(() => {
+          // Redirect based on user role - immediately after successful login
+          if (user && user.isAdmin) {
+            navigate('/admin/dashboard');
+          } else {
+            navigate('/dashboard');
+          }
+        }, 100);
+      } catch (userError) {
+        console.error('Error fetching user profile:', userError);
+        toast.error('Login successful but failed to fetch user profile');
+        throw userError;
+      }
       
       return response.data;
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Login failed');
+      // Check if the error is due to unverified OTP
+      if (error.response && error.response.status === 403 && 
+          error.response.data.message === "Please verify your OTP first") {
+        // Set the email in the OTP state for verification
+        setOtp({ email: credentials.email });
+        toast.warning('Please verify your OTP first');
+        navigate('/verify-otp');
+      } else {
+        toast.error(error.response?.data?.message || 'Login failed');
+      }
       throw error;
     } finally {
       setLoading(false);
