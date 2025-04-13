@@ -191,6 +191,12 @@ const JobDetailsPage = () => {
               </div>
               <div className="flex items-center text-secondary-700">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 text-secondary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-blue-600 font-medium">{job.applicationCount || 0}</span> <span className="text-secondary-500">applicants</span>
+              </div>
+              <div className="flex items-center text-secondary-700">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 text-secondary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 Posted: {formatDate(job.createdAt || new Date())}
@@ -272,6 +278,24 @@ const JobDetailsPage = () => {
                   </div>
                 ) : (
                   <form onSubmit={handleApply} className="space-y-6">
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                        {job.jobType || 'Full-time'}
+                      </span>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-secondary-100 text-secondary-800">
+                        {job.category || 'General'}
+                      </span>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        {job.experience || 'Entry Level'}
+                      </span>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        {job.applicationCount || 0} applicants
+                      </span>
+                    </div>
+                    
                     <div>
                       <label className="block text-sm font-medium text-secondary-700 mb-1">
                         Resume/CV (PDF, DOC, DOCX)

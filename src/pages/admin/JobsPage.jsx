@@ -15,11 +15,12 @@ const JobsPage = () => {
         setLoading(true);
         // Using real API endpoint to fetch jobs from database
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/jobs/get-jobs`);
+        console.log('Jobs data received:', response.data);
         setJobs(response.data || []);
         setLoading(false);
       } catch (err) {
         setError('Failed to fetch jobs. Please try again later.');
-        console.error(err);
+        console.error('Error fetching jobs:', err);
         setLoading(false);
       }
     };
@@ -157,8 +158,11 @@ const JobsPage = () => {
                     {formatDate(job.createdAt)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900">
-                    <span className="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                      {job.applications || 0}
+                    <span className="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <strong>{job.applicationCount || 0}</strong> applicants
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
