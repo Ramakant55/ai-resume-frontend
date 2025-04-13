@@ -279,7 +279,7 @@ const ApplicationsPage = () => {
           
           <div className="flex-1">
             <label htmlFor="skills" className="block text-sm font-medium text-secondary-700 mb-1">
-              Filter by Skills
+              Filter by Skills (Comma Separated)
             </label>
             <div className="flex">
               <input
@@ -292,11 +292,15 @@ const ApplicationsPage = () => {
               />
               <button
                 onClick={filterBySkills}
-                className="ml-2 btn btn-primary py-2 px-4"
+                className="ml-2 btn btn-primary py-2 px-4 flex items-center"
               >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
                 Filter
               </button>
             </div>
+            <p className="text-xs text-secondary-500 mt-1">Enter skills to find matching applicants from their resumes</p>
           </div>
           
           <button
@@ -307,6 +311,26 @@ const ApplicationsPage = () => {
           </button>
         </div>
       </div>
+
+      {/* Display active filters */}
+      {skills && (
+        <div className="mb-4 flex items-center">
+          <span className="text-sm font-medium text-secondary-700 mr-2">Active Skills Filter:</span>
+          <div className="flex flex-wrap gap-2">
+            {skills.split(',').map((skill, index) => (
+              <span key={index} className="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                {skill.trim()}
+              </span>
+            ))}
+          </div>
+          <button 
+            onClick={resetFilters} 
+            className="ml-2 text-sm text-red-600 hover:text-red-800"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Applications Table */}
       {loading ? (
@@ -404,15 +428,17 @@ const ApplicationsPage = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
-                      {application.skills.slice(0, 3).map((skill, index) => (
-                        <span key={index} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                          {skill}
-                        </span>
-                      ))}
-                      {application.skills.length > 3 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary-100 text-secondary-800">
-                          +{application.skills.length - 3}
-                        </span>
+                      {application.skills && application.skills.length > 0 ? (
+                        application.skills.slice(0, 3).map((skill, index) => (
+                          <span key={index} className="bg-secondary-100 text-secondary-800 text-xs font-medium px-2 py-0.5 rounded">
+                            {skill}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-secondary-400 text-xs">No skills listed</span>
+                      )}
+                      {application.skills && application.skills.length > 3 && (
+                        <span className="text-secondary-400 text-xs">+{application.skills.length - 3} more</span>
                       )}
                     </div>
                   </td>
