@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../utils/apiClient';
 
 const AuthContext = createContext();
 
@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
         if (token) {
           try {
             // Set the auth token for all axios requests
-            apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             
             // First try to get user data from localStorage
             const userStr = localStorage.getItem('user');
@@ -52,7 +52,9 @@ export const AuthProvider = ({ children }) => {
             if (!userData) {
               console.log('Fetching user profile from backend...');
               try {
-                const response = await apiClient.get(`/users/profile`);
+                const response = await axios.get(`${import.meta.env.VITE_API_URL}/users/profile`, {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
                 
                 if (response.data && response.data._id) {
                   console.log('User profile fetched successfully:', response.data.name);
@@ -93,7 +95,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       setLoading(true);
-      const response = await apiClient.post(`/auth/signup`, userData);
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/signup`, userData);
       // Save both email and otpToken
       setOtp({ email: userData.email, otpToken: response.data.otpToken });
       toast.success('Registration successful! Please verify your OTP.');
@@ -110,7 +112,7 @@ export const AuthProvider = ({ children }) => {
   const verifyOtp = async (otpData) => {
     try {
       setLoading(true);
-      const response = await apiClient.post(`/auth/verify-otp`, { 
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/verify-otp`, { 
         email: otp.email,
         otp: otpData.otp,
         otpToken: otp.otpToken
@@ -129,16 +131,18 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       setLoading(true);
-      const response = await apiClient.post(`/auth/login`, credentials);
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/login`, credentials);
       const { token } = response.data;
       
       // Set token in local storage and axios headers
       localStorage.setItem('token', token);
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
       // Fetch user data with the token
       try {
-        const userResponse = await apiClient.get(`/users/profile`);
+        const userResponse = await axios.get(`${import.meta.env.VITE_API_URL}/users/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const user = userResponse.data;
         localStorage.setItem('user', JSON.stringify(user));
         setUser(user);
@@ -183,7 +187,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    delete apiClient.defaults.headers.common['Authorization'];
+    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
     setIsAuthenticated(false);
     toast.success('Logged out successfully');

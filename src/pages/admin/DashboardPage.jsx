@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import apiClient from '../../utils/apiClient';
+import axios from 'axios';
 
 const DashboardPage = () => {
   const [stats, setStats] = useState({
@@ -33,20 +33,20 @@ const DashboardPage = () => {
         };
         
         // Fetch jobs
-        const jobsResponse = await apiClient.get(`/jobs/get-jobs`);
+        const jobsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/jobs/get-jobs`);
         const totalJobs = jobsResponse.data?.length || 0;
         
         // Fetch pending jobs
-        const pendingJobsResponse = await apiClient.get(
-          `/jobs/pending-jobs`,
+        const pendingJobsResponse = await axios.get(
+          `${import.meta.env.VITE_API_URL}/jobs/pending-jobs`,
           config
         );
         setPendingJobs(pendingJobsResponse.data);
         const pendingJobsCount = pendingJobsResponse.data?.length || 0;
         
         // Fetch applications
-        const applicationsResponse = await apiClient.get(
-          `/applications/allapp`,
+        const applicationsResponse = await axios.get(
+          `${import.meta.env.VITE_API_URL}/applications/allapp`,
           config
         );
         const totalApplications = applicationsResponse.data?.length || 0;
@@ -56,9 +56,6 @@ const DashboardPage = () => {
           app => app.status && app.status.toLowerCase() === 'shortlisted'
         ).length || 0;
         
-        // Get recent applications (last 5)
-        const recentApps = applicationsResponse.data?.slice(0, 5) || [];
-        
         // Update stats
         setStats({
           totalJobs,
@@ -67,11 +64,15 @@ const DashboardPage = () => {
           shortlisted: shortlistedCount
         });
         
-        // Update recent applications
+        // Get recent applications
+        const recentApps = applicationsResponse.data
+          ?.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .slice(0, 3) || [];
         setRecentApplications(recentApps);
+        
       } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setError(err.response?.data?.message || 'Failed to fetch dashboard data. Please try again.');
+        setError('Failed to fetch dashboard data. Please try again later.');
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -80,6 +81,7 @@ const DashboardPage = () => {
     fetchDashboardData();
   }, []);
 
+  // Handle job approval/rejection
   const handleJobAction = async (jobId, status) => {
     try {
       setActionLoading(jobId);
@@ -89,8 +91,8 @@ const DashboardPage = () => {
         throw new Error('Authentication token not found. Please log in again.');
       }
       
-      await apiClient.put(
-        `/jobs/review`,
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/jobs/review`,
         { jobId, status },
         {
           headers: {
@@ -122,231 +124,258 @@ const DashboardPage = () => {
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
-  // Get status badge with appropriate styling
-  const getStatusBadge = (status) => {
-    const statusStyles = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      shortlisted: 'bg-blue-100 text-blue-800',
-      interviewed: 'bg-purple-100 text-purple-800',
-      hired: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800'
+  // Status badge component with appropriate colors
+  const StatusBadge = ({ status }) => {
+    const getStatusStyles = () => {
+      switch (status.toLowerCase()) {
+        case 'pending':
+          return 'bg-yellow-100 text-yellow-800';
+        case 'reviewing':
+          return 'bg-blue-100 text-blue-800';
+        case 'shortlisted':
+          return 'bg-green-100 text-green-800';
+        case 'rejected':
+          return 'bg-red-100 text-red-800';
+        default:
+          return 'bg-secondary-100 text-secondary-800';
+      }
     };
 
     return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusStyles[status.toLowerCase()] || 'bg-gray-100 text-gray-800'}`}>
-        {status}
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles()}`}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-secondary-900">Admin Dashboard</h1>
-        <p className="text-secondary-600 mt-2">Monitor and manage your job portal</p>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
+    <div>
+      <h1 className="text-2xl font-bold text-secondary-900 mb-6">Admin Dashboard</h1>
+      
+      {loading ? (
+        <div className="text-center py-12">
+          <svg className="animate-spin h-10 w-10 text-primary-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-secondary-600">Loading dashboard data...</p>
+        </div>
+      ) : error ? (
+        <div className="text-center py-12 text-red-600">
+          <p>{error}</p>
+        </div>
+      ) : (
+        <>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-primary-100 text-primary-800">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h2 className="text-sm font-medium text-secondary-500">Total Jobs</h2>
+                  <p className="text-2xl font-semibold text-secondary-900">{stats.totalJobs}</p>
+                </div>
+              </div>
             </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">{error}</h3>
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-indigo-100 text-indigo-800">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h2 className="text-sm font-medium text-secondary-500">Total Applications</h2>
+                  <p className="text-2xl font-semibold text-secondary-900">{stats.totalApplications}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-yellow-100 text-yellow-800">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h2 className="text-sm font-medium text-secondary-500">Pending Job Reviews</h2>
+                  <p className="text-2xl font-semibold text-secondary-900">{stats.pendingReviews}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-green-100 text-green-800">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h2 className="text-sm font-medium text-secondary-500">Shortlisted</h2>
+                  <p className="text-2xl font-semibold text-secondary-900">{stats.shortlisted}</p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 h-12 w-12 rounded-md bg-blue-100 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-secondary-600">Total Jobs</h3>
-              <p className="text-2xl font-semibold text-secondary-900">{stats.totalJobs}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 h-12 w-12 rounded-md bg-green-100 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-secondary-600">Total Applications</h3>
-              <p className="text-2xl font-semibold text-secondary-900">{stats.totalApplications}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 h-12 w-12 rounded-md bg-yellow-100 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-secondary-600">Pending Reviews</h3>
-              <p className="text-2xl font-semibold text-secondary-900">{stats.pendingReviews}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 h-12 w-12 rounded-md bg-purple-100 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-secondary-600">Shortlisted</h3>
-              <p className="text-2xl font-semibold text-secondary-900">{stats.shortlisted}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Applications */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-secondary-900">Recent Applications</h2>
-              <Link to="/admin/applications" className="text-primary-600 hover:text-primary-800 text-sm font-medium">
-                View All
+          {/* Quick Actions */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-lg font-semibold text-secondary-900 mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Link to="/admin/create-job" className="flex items-center p-4 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors">
+                <div className="p-2 rounded-full bg-primary-100 text-primary-700">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className="ml-3 font-medium text-primary-700">Post New Job</span>
+              </Link>
+              <Link to="/admin/applications" className="flex items-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                <div className="p-2 rounded-full bg-indigo-100 text-indigo-700">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                    <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className="ml-3 font-medium text-indigo-700">View Applications</span>
+              </Link>
+              <Link to="/admin/pending-jobs" className="flex items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
+                <div className="p-2 rounded-full bg-yellow-100 text-yellow-700">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className="ml-3 font-medium text-yellow-700">Review Pending Jobs</span>
               </Link>
             </div>
-            
-            {recentApplications.length === 0 ? (
-              <div className="text-center py-8">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-secondary-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 className="text-lg font-medium text-secondary-900 mb-1">No applications yet</h3>
-                <p className="text-secondary-600">No job applications have been submitted yet.</p>
+          </div>
+          
+          {/* Pending Jobs Section */}
+          {pendingJobs.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+              <div className="p-6 border-b border-secondary-200 flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-secondary-900">Pending Job Approvals</h2>
+                <Link to="/admin/pending-jobs" className="text-primary-600 hover:text-primary-800 text-sm font-medium">
+                  View all
+                </Link>
               </div>
-            ) : (
+              
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-secondary-200">
                   <thead className="bg-secondary-50">
                     <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                        Applicant
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                        Job Title
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                        Applied On
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                        Status
-                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Job Title</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Company</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Posted By</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Date</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-secondary-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-secondary-200">
-                    {recentApplications.map((application) => (
-                      <tr key={application._id}>
+                    {pendingJobs.slice(0, 3).map((job) => (
+                      <tr key={job._id}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-secondary-900">
-                            {application.userId?.name || 'Applicant Name Not Available'}
-                          </div>
-                          <div className="text-sm text-secondary-500">
-                            {application.userId?.email || 'Email Not Available'}
-                          </div>
+                          <div className="text-sm font-medium text-secondary-900">{job.title}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-secondary-900">
-                            {application.jobId?.title || 'Job Title Not Available'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-500">
-                          {formatDate(application.appliedAt)}
+                          <div className="text-sm text-secondary-600">{job.company}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(application.status)}
+                          <div className="text-sm text-secondary-600">
+                            {job.createdBy?.name || 'Unknown User'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-secondary-600">{formatDate(job.createdAt)}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={() => handleJobAction(job._id, 'approved')}
+                            disabled={actionLoading === job._id}
+                            className="text-green-600 hover:text-green-900 mr-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {actionLoading === job._id ? 'Processing...' : 'Approve'}
+                          </button>
+                          <button
+                            onClick={() => handleJobAction(job._id, 'rejected')}
+                            disabled={actionLoading === job._id}
+                            className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {actionLoading === job._id ? 'Processing...' : 'Reject'}
+                          </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
-        </div>
+              
+              {pendingJobs.length > 3 && (
+                <div className="p-4 border-t border-secondary-200 text-center">
+                  <Link to="/admin/pending-jobs" className="text-primary-600 hover:text-primary-800 text-sm font-medium">
+                    View all {pendingJobs.length} pending jobs
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Pending Job Reviews */}
-        <div>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-secondary-900">Pending Job Reviews</h2>
-              <Link to="/admin/pending-jobs" className="text-primary-600 hover:text-primary-800 text-sm font-medium">
-                View All
+          {/* Recent Applications */}
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="p-6 border-b border-secondary-200 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-secondary-900">Recent Applications</h2>
+              <Link to="/admin/applications" className="text-primary-600 hover:text-primary-800 text-sm font-medium">
+                View all
               </Link>
             </div>
             
-            {pendingJobs.length === 0 ? (
-              <div className="text-center py-8">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-secondary-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <h3 className="text-lg font-medium text-secondary-900 mb-1">No pending reviews</h3>
-                <p className="text-secondary-600">All job postings have been reviewed.</p>
+            {recentApplications.length === 0 ? (
+              <div className="p-6 text-center text-secondary-600">
+                <p>No applications found.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {pendingJobs.map((job) => (
-                  <div key={job._id} className="border border-secondary-200 rounded-lg p-4">
-                    <h3 className="font-medium text-secondary-900 mb-1">{job.title}</h3>
-                    <p className="text-sm text-secondary-600 mb-2">{job.company}</p>
-                    <p className="text-xs text-secondary-500 mb-3">
-                      Posted by {job.postedBy?.name || 'Unknown User'} on {formatDate(job.createdAt)}
-                    </p>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleJobAction(job._id, 'approved')}
-                        disabled={actionLoading === job._id}
-                        className="flex-1 btn btn-primary text-xs py-1 px-2"
-                      >
-                        {actionLoading === job._id ? 'Approving...' : 'Approve'}
-                      </button>
-                      <button
-                        onClick={() => handleJobAction(job._id, 'rejected')}
-                        disabled={actionLoading === job._id}
-                        className="flex-1 btn btn-secondary text-xs py-1 px-2"
-                      >
-                        {actionLoading === job._id ? 'Rejecting...' : 'Reject'}
-                      </button>
+              <div className="divide-y divide-secondary-200">
+                {recentApplications.map((application) => (
+                  <div key={application._id} className="p-6">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                      <div>
+                        <h3 className="text-lg font-medium text-secondary-900">
+                          {application.jobId && typeof application.jobId === 'object' && application.jobId.title
+                            ? application.jobId.title
+                            : application.jobTitle || 'Job Title Unavailable'}
+                        </h3>
+                        <div className="mt-1">
+                          <span className="text-secondary-600">
+                            Applicant: {application.userId && typeof application.userId === 'object' 
+                              ? application.userId.name 
+                              : 'Unknown'}
+                          </span>
+                          <span className="mx-2 text-secondary-300">|</span>
+                          <span className="text-secondary-600">
+                            {application.jobId && typeof application.jobId === 'object' && application.jobId.company
+                              ? application.jobId.company
+                              : application.company || 'Company Unavailable'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-secondary-500 mt-1">
+                          Applied on {formatDate(application.createdAt || new Date())}
+                        </p>
+                      </div>
+                      <div className="mt-4 md:mt-0">
+                        <StatusBadge status={application.status || 'pending'} />
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 };

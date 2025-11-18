@@ -1,20 +1,61 @@
 import React, { useState } from 'react';
-import { useFormik } from 'formik';
-import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
+import { Formik, Form, Field, ErrorMessage, FieldArray } from 'formik';
+import * as Yup from 'yup';
+import axios from 'axios';
 import { toast } from 'react-toastify';
-import apiClient from '../../utils/apiClient';
+
+const JobSchema = Yup.object().shape({
+  title: Yup.string()
+    .required('Job title is required')
+    .min(3, 'Title must be at least 3 characters'),
+  company: Yup.string()
+    .required('Company name is required'),
+  location: Yup.string()
+    .required('Location is required'),
+  jobType: Yup.string()
+    .required('Job type is required'),
+  category: Yup.string()
+    .required('Category is required'),
+  experience: Yup.string()
+    .required('Experience level is required'),
+  salary: Yup.string()
+    .required('Salary information is required'),
+  description: Yup.string()
+    .required('Job description is required')
+    .min(50, 'Description must be at least 50 characters'),
+  requirements: Yup.array()
+    .of(Yup.string().required('Requirement cannot be empty'))
+    .min(1, 'At least one requirement is required'),
+  skills: Yup.array()
+    .of(Yup.string().required('Skill cannot be empty'))
+    .min(1, 'At least one skill is required'),
+});
 
 const CreateJobPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  // Job categories for the dropdown
-  const jobCategories = [
-    'Technology', 
-    'Healthcare', 
-    'Finance', 
-    'Education', 
+  const initialValues = {
+    title: '',
+    company: '',
+    location: '',
+    jobType: 'Full-time',
+    category: 'Engineering',
+    experience: 'Entry Level',
+    salary: '',
+    description: '',
+    requirements: [''],
+    skills: [''],
+    isActive: true
+  };
+
+  const jobTypeOptions = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Remote'];
+  
+  const categoryOptions = [
+    'Engineering', 
+    'Design', 
+    'Product Management', 
     'Marketing', 
     'Sales', 
     'Customer Support', 
@@ -58,7 +99,7 @@ const CreateJobPage = () => {
       
       // Use the correct endpoint as specified in the API
       try {
-        const response = await apiClient.post(`/jobs/post-job`, values, config);
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/jobs/post-job`, values, config);
         console.log("Job posting response:", response.data);
         
         toast.success('Job posted successfully!');
@@ -80,418 +121,274 @@ const CreateJobPage = () => {
     }
   };
 
-  const formik = useFormik({
-    initialValues: {
-      title: '',
-      company: '',
-      location: '',
-      type: 'Full-time',
-      category: '',
-      experienceLevel: '',
-      salary: '',
-      description: '',
-      requirements: '',
-      responsibilities: '',
-      benefits: '',
-      applicationDeadline: '',
-      contactEmail: '',
-      contactPhone: '',
-      website: '',
-      isActive: true
-    },
-    validationSchema: Yup.object({
-      title: Yup.string().required('Job title is required'),
-      company: Yup.string().required('Company name is required'),
-      location: Yup.string().required('Location is required'),
-      type: Yup.string().required('Job type is required'),
-      category: Yup.string().required('Category is required'),
-      experienceLevel: Yup.string().required('Experience level is required'),
-      salary: Yup.string(),
-      description: Yup.string().required('Job description is required'),
-      requirements: Yup.string().required('Requirements are required'),
-      responsibilities: Yup.string().required('Responsibilities are required'),
-      benefits: Yup.string(),
-      applicationDeadline: Yup.date().nullable(),
-      contactEmail: Yup.string().email('Invalid email address'),
-      contactPhone: Yup.string(),
-      website: Yup.string().url('Invalid URL'),
-      isActive: Yup.boolean()
-    }),
-    onSubmit: handleSubmit,
-  });
-
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-secondary-900">Create New Job</h1>
-        <p className="text-secondary-600">Fill in the details below to post a new job opportunity</p>
-      </div>
-
+    <div className="max-w-5xl mx-auto">
+      <h1 className="text-2xl font-bold text-secondary-900 mb-6">Post a New Job</h1>
+      
       <div className="bg-white rounded-lg shadow-md p-6">
-        <form onSubmit={formik.handleSubmit} className="space-y-6">
-          {/* Basic Information Section */}
-          <div className="border-b border-secondary-200 pb-6">
-            <h2 className="text-lg font-medium text-secondary-900 mb-4">Basic Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="title" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Job Title *
-                </label>
-                <input
-                  type="text"
-                  id="title"
-                  name="title"
-                  className="input w-full"
-                  value={formik.values.title}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="e.g., Senior Software Engineer"
-                />
-                {formik.touched.title && formik.errors.title ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.title}</p>
-                ) : null}
+        <Formik
+          initialValues={initialValues}
+          validationSchema={JobSchema}
+          onSubmit={handleSubmit}
+        >
+          {({ values, errors, touched, isSubmitting, handleChange }) => (
+            <Form className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="title" className="block text-sm font-medium text-secondary-700 mb-1">
+                    Job Title*
+                  </label>
+                  <Field
+                    id="title"
+                    name="title"
+                    type="text"
+                    className={`input w-full ${errors.title && touched.title ? 'border-red-300 focus:ring-red-500' : ''}`}
+                    placeholder="e.g. Frontend Developer"
+                  />
+                  <ErrorMessage name="title" component="div" className="mt-1 text-sm text-red-600" />
+                </div>
+
+                <div>
+                  <label htmlFor="company" className="block text-sm font-medium text-secondary-700 mb-1">
+                    Company Name*
+                  </label>
+                  <Field
+                    id="company"
+                    name="company"
+                    type="text"
+                    className={`input w-full ${errors.company && touched.company ? 'border-red-300 focus:ring-red-500' : ''}`}
+                    placeholder="e.g. TechCorp"
+                  />
+                  <ErrorMessage name="company" component="div" className="mt-1 text-sm text-red-600" />
+                </div>
+
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-secondary-700 mb-1">
+                    Location*
+                  </label>
+                  <Field
+                    id="location"
+                    name="location"
+                    type="text"
+                    className={`input w-full ${errors.location && touched.location ? 'border-red-300 focus:ring-red-500' : ''}`}
+                    placeholder="e.g. New York, NY or Remote"
+                  />
+                  <ErrorMessage name="location" component="div" className="mt-1 text-sm text-red-600" />
+                </div>
+
+                <div>
+                  <label htmlFor="jobType" className="block text-sm font-medium text-secondary-700 mb-1">
+                    Job Type*
+                  </label>
+                  <Field
+                    as="select"
+                    id="jobType"
+                    name="jobType"
+                    className={`input w-full ${errors.jobType && touched.jobType ? 'border-red-300 focus:ring-red-500' : ''}`}
+                  >
+                    {jobTypeOptions.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </Field>
+                  <ErrorMessage name="jobType" component="div" className="mt-1 text-sm text-red-600" />
+                </div>
+
+                <div>
+                  <label htmlFor="category" className="block text-sm font-medium text-secondary-700 mb-1">
+                    Category*
+                  </label>
+                  <Field
+                    as="select"
+                    id="category"
+                    name="category"
+                    className={`input w-full ${errors.category && touched.category ? 'border-red-300 focus:ring-red-500' : ''}`}
+                  >
+                    {categoryOptions.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </Field>
+                  <ErrorMessage name="category" component="div" className="mt-1 text-sm text-red-600" />
+                </div>
+
+                <div>
+                  <label htmlFor="experience" className="block text-sm font-medium text-secondary-700 mb-1">
+                    Experience Level*
+                  </label>
+                  <Field
+                    as="select"
+                    id="experience"
+                    name="experience"
+                    className={`input w-full ${errors.experience && touched.experience ? 'border-red-300 focus:ring-red-500' : ''}`}
+                  >
+                    {experienceOptions.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </Field>
+                  <ErrorMessage name="experience" component="div" className="mt-1 text-sm text-red-600" />
+                </div>
+
+                <div>
+                  <label htmlFor="salary" className="block text-sm font-medium text-secondary-700 mb-1">
+                    Salary Range*
+                  </label>
+                  <Field
+                    id="salary"
+                    name="salary"
+                    type="text"
+                    className={`input w-full ${errors.salary && touched.salary ? 'border-red-300 focus:ring-red-500' : ''}`}
+                    placeholder="e.g. $80,000 - $100,000 per year"
+                  />
+                  <ErrorMessage name="salary" component="div" className="mt-1 text-sm text-red-600" />
+                </div>
+
+                <div>
+                  <div className="flex items-center h-10">
+                    <Field
+                      id="isActive"
+                      name="isActive"
+                      type="checkbox"
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-secondary-300 rounded"
+                    />
+                    <label htmlFor="isActive" className="ml-2 block text-sm text-secondary-900">
+                      Publish job immediately
+                    </label>
+                  </div>
+                  <p className="text-xs text-secondary-500 mt-1">
+                    Uncheck this if you want to save the job as a draft
+                  </p>
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="company" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Company Name *
-                </label>
-                <input
-                  type="text"
-                  id="company"
-                  name="company"
-                  className="input w-full"
-                  value={formik.values.company}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="e.g., Tech Innovations Inc."
-                />
-                {formik.touched.company && formik.errors.company ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.company}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label htmlFor="location" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Location *
-                </label>
-                <input
-                  type="text"
-                  id="location"
-                  name="location"
-                  className="input w-full"
-                  value={formik.values.location}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="e.g., San Francisco, CA or Remote"
-                />
-                {formik.touched.location && formik.errors.location ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.location}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label htmlFor="type" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Job Type *
-                </label>
-                <select
-                  id="type"
-                  name="type"
-                  className="input w-full"
-                  value={formik.values.type}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                >
-                  <option value="Full-time">Full-time</option>
-                  <option value="Part-time">Part-time</option>
-                  <option value="Contract">Contract</option>
-                  <option value="Freelance">Freelance</option>
-                  <option value="Internship">Internship</option>
-                </select>
-                {formik.touched.type && formik.errors.type ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.type}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label htmlFor="category" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Category *
-                </label>
-                <select
-                  id="category"
-                  name="category"
-                  className="input w-full"
-                  value={formik.values.category}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                >
-                  <option value="">Select a category</option>
-                  {jobCategories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-                {formik.touched.category && formik.errors.category ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.category}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label htmlFor="experienceLevel" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Experience Level *
-                </label>
-                <select
-                  id="experienceLevel"
-                  name="experienceLevel"
-                  className="input w-full"
-                  value={formik.values.experienceLevel}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                >
-                  <option value="">Select experience level</option>
-                  {experienceOptions.map((level) => (
-                    <option key={level} value={level}>
-                      {level}
-                    </option>
-                  ))}
-                </select>
-                {formik.touched.experienceLevel && formik.errors.experienceLevel ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.experienceLevel}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label htmlFor="salary" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Salary Range
-                </label>
-                <input
-                  type="text"
-                  id="salary"
-                  name="salary"
-                  className="input w-full"
-                  value={formik.values.salary}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="e.g., $80,000 - $120,000"
-                />
-                {formik.touched.salary && formik.errors.salary ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.salary}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label htmlFor="applicationDeadline" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Application Deadline
-                </label>
-                <input
-                  type="date"
-                  id="applicationDeadline"
-                  name="applicationDeadline"
-                  className="input w-full"
-                  value={formik.values.applicationDeadline}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                />
-                {formik.touched.applicationDeadline && formik.errors.applicationDeadline ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.applicationDeadline}</p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          {/* Job Description Section */}
-          <div className="border-b border-secondary-200 pb-6">
-            <h2 className="text-lg font-medium text-secondary-900 mb-4">Job Description</h2>
-            <div className="space-y-6">
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Job Description *
+                  Job Description*
                 </label>
-                <textarea
+                <Field
+                  as="textarea"
                   id="description"
                   name="description"
-                  rows={4}
-                  className="input w-full"
-                  value={formik.values.description}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="Provide a detailed description of the role and what the position entails..."
-                ></textarea>
-                {formik.touched.description && formik.errors.description ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.description}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label htmlFor="requirements" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Requirements *
-                </label>
-                <textarea
-                  id="requirements"
-                  name="requirements"
-                  rows={4}
-                  className="input w-full"
-                  value={formik.values.requirements}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="List the qualifications, skills, and experience required for this position..."
-                ></textarea>
-                {formik.touched.requirements && formik.errors.requirements ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.requirements}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label htmlFor="responsibilities" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Responsibilities *
-                </label>
-                <textarea
-                  id="responsibilities"
-                  name="responsibilities"
-                  rows={4}
-                  className="input w-full"
-                  value={formik.values.responsibilities}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="Describe the key responsibilities and duties of this role..."
-                ></textarea>
-                {formik.touched.responsibilities && formik.errors.responsibilities ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.responsibilities}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label htmlFor="benefits" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Benefits
-                </label>
-                <textarea
-                  id="benefits"
-                  name="benefits"
-                  rows={3}
-                  className="input w-full"
-                  value={formik.values.benefits}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="List any benefits offered with this position (e.g., health insurance, PTO, etc.)..."
-                ></textarea>
-                {formik.touched.benefits && formik.errors.benefits ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.benefits}</p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          {/* Contact Information Section */}
-          <div className="border-b border-secondary-200 pb-6">
-            <h2 className="text-lg font-medium text-secondary-900 mb-4">Contact Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="contactEmail" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Contact Email
-                </label>
-                <input
-                  type="email"
-                  id="contactEmail"
-                  name="contactEmail"
-                  className="input w-full"
-                  value={formik.values.contactEmail}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="hr@company.com"
+                  rows="6"
+                  className={`input w-full ${errors.description && touched.description ? 'border-red-300 focus:ring-red-500' : ''}`}
+                  placeholder="Provide a detailed description of the job role, responsibilities, and qualifications..."
                 />
-                {formik.touched.contactEmail && formik.errors.contactEmail ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.contactEmail}</p>
-                ) : null}
+                <ErrorMessage name="description" component="div" className="mt-1 text-sm text-red-600" />
               </div>
 
               <div>
-                <label htmlFor="contactPhone" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Contact Phone
+                <label className="block text-sm font-medium text-secondary-700 mb-1">
+                  Requirements*
                 </label>
-                <input
-                  type="tel"
-                  id="contactPhone"
-                  name="contactPhone"
-                  className="input w-full"
-                  value={formik.values.contactPhone}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="(555) 123-4567"
-                />
-                {formik.touched.contactPhone && formik.errors.contactPhone ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.contactPhone}</p>
-                ) : null}
+                <FieldArray name="requirements">
+                  {({ remove, push }) => (
+                    <div className="space-y-2">
+                      {values.requirements.map((requirement, index) => (
+                        <div key={index} className="flex">
+                          <Field
+                            name={`requirements.${index}`}
+                            className={`input w-full ${
+                              errors.requirements?.[index] && touched.requirements?.[index]
+                                ? 'border-red-300 focus:ring-red-500'
+                                : ''
+                            }`}
+                            placeholder="e.g. Bachelor's degree in Computer Science or related field"
+                          />
+                          <button
+                            type="button"
+                            className="ml-2 text-red-600 hover:text-red-800"
+                            onClick={() => remove(index)}
+                            disabled={values.requirements.length === 1}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                      {errors.requirements && typeof errors.requirements === 'string' && (
+                        <div className="mt-1 text-sm text-red-600">{errors.requirements}</div>
+                      )}
+                      <button
+                        type="button"
+                        className="mt-2 inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-800"
+                        onClick={() => push('')}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                        Add Requirement
+                      </button>
+                    </div>
+                  )}
+                </FieldArray>
               </div>
 
-              <div className="md:col-span-2">
-                <label htmlFor="website" className="block text-sm font-medium text-secondary-700 mb-1">
-                  Company Website
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-1">
+                  Required Skills*
                 </label>
-                <input
-                  type="url"
-                  id="website"
-                  name="website"
-                  className="input w-full"
-                  value={formik.values.website}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="https://www.company.com"
-                />
-                {formik.touched.website && formik.errors.website ? (
-                  <p className="mt-1 text-sm text-red-600">{formik.errors.website}</p>
-                ) : null}
+                <FieldArray name="skills">
+                  {({ remove, push }) => (
+                    <div className="space-y-2">
+                      {values.skills.map((skill, index) => (
+                        <div key={index} className="flex">
+                          <Field
+                            name={`skills.${index}`}
+                            className={`input w-full ${
+                              errors.skills?.[index] && touched.skills?.[index]
+                                ? 'border-red-300 focus:ring-red-500'
+                                : ''
+                            }`}
+                            placeholder="e.g. React.js"
+                          />
+                          <button
+                            type="button"
+                            className="ml-2 text-red-600 hover:text-red-800"
+                            onClick={() => remove(index)}
+                            disabled={values.skills.length === 1}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                      {errors.skills && typeof errors.skills === 'string' && (
+                        <div className="mt-1 text-sm text-red-600">{errors.skills}</div>
+                      )}
+                      <button
+                        type="button"
+                        className="mt-2 inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-800"
+                        onClick={() => push('')}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                        Add Skill
+                      </button>
+                    </div>
+                  )}
+                </FieldArray>
               </div>
-            </div>
-          </div>
 
-          {/* Status Section */}
-          <div>
-            <h2 className="text-lg font-medium text-secondary-900 mb-4">Status</h2>
-            <div className="flex items-center">
-              <input
-                id="isActive"
-                name="isActive"
-                type="checkbox"
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-secondary-300 rounded"
-                checked={formik.values.isActive}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-              />
-              <label htmlFor="isActive" className="ml-2 block text-sm text-secondary-900">
-                Active (Check this box to make the job visible to job seekers)
-              </label>
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end space-x-3 pt-6">
-            <button
-              type="button"
-              onClick={() => navigate('/admin/jobs')}
-              className="btn btn-secondary py-2 px-4"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={formik.isSubmitting || loading}
-              className="btn btn-primary py-2 px-4"
-            >
-              {formik.isSubmitting || loading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Posting Job...
-                </>
-              ) : (
-                'Post Job'
-              )}
-            </button>
-          </div>
-        </form>
+              <div className="pt-4 border-t border-secondary-200 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  className="btn btn-secondary py-2 px-4"
+                  onClick={() => navigate('/admin/jobs')}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || loading}
+                  className="btn btn-primary py-2 px-6"
+                >
+                  {isSubmitting || loading ? 'Posting...' : 'Post Job'}
+                </button>
+              </div>
+            </Form>
+          )}
+        </Formik>
       </div>
     </div>
   );

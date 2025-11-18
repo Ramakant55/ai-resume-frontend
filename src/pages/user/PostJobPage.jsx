@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../../utils/apiClient';
+import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
 
 const PostJobPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -33,8 +35,8 @@ const PostJobPage = () => {
         throw new Error('Authentication token not found. Please log in again.');
       }
       
-      const response = await apiClient.post(
-        `/jobs/post-job`,
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/jobs/post-job`,
         formData,
         {
           headers: {
@@ -67,132 +69,104 @@ const PostJobPage = () => {
   return (
     <div className="py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold text-secondary-900 mb-6">Post a New Job</h1>
-          
-          {success ? (
-            <div className="rounded-md bg-green-50 p-4 mb-6">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-green-800">
-                    Job posted successfully! Redirecting to your jobs page...
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : null}
-          
-          {error ? (
-            <div className="rounded-md bg-red-50 p-4 mb-6">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                </div>
-              </div>
-            </div>
-          ) : null}
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-secondary-700 mb-1">
-                Job Title
-              </label>
+        <h1 className="text-2xl font-bold text-secondary-900 mb-6">Post a New Job</h1>
+        
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-green-700">Job posted successfully! It will be reviewed by an admin before being published.</p>
+          </div>
+        )}
+        
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-700">{error}</p>
+          </div>
+        )}
+        
+        <div className="bg-white shadow-md rounded-lg p-6">
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label htmlFor="title" className="block text-secondary-700 font-medium mb-2">Job Title*</label>
               <input
                 type="text"
                 id="title"
                 name="title"
-                required
-                className="input w-full"
                 value={formData.title}
                 onChange={handleChange}
-                placeholder="e.g., Software Engineer"
+                required
+                className="w-full px-4 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder="e.g. Frontend Developer"
               />
             </div>
             
-            <div>
-              <label htmlFor="company" className="block text-sm font-medium text-secondary-700 mb-1">
-                Company Name
-              </label>
+            <div className="mb-4">
+              <label htmlFor="company" className="block text-secondary-700 font-medium mb-2">Company Name*</label>
               <input
                 type="text"
                 id="company"
                 name="company"
-                required
-                className="input w-full"
                 value={formData.company}
                 onChange={handleChange}
-                placeholder="e.g., Tech Corp"
+                required
+                className="w-full px-4 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder="e.g. TechCorp Inc."
               />
             </div>
             
-            <div>
-              <label htmlFor="location" className="block text-sm font-medium text-secondary-700 mb-1">
-                Location
-              </label>
+            <div className="mb-4">
+              <label htmlFor="location" className="block text-secondary-700 font-medium mb-2">Location*</label>
               <input
                 type="text"
                 id="location"
                 name="location"
-                className="input w-full"
                 value={formData.location}
                 onChange={handleChange}
-                placeholder="e.g., New York, NY or Remote"
+                required
+                className="w-full px-4 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder="e.g. Remote, New York, NY"
               />
             </div>
             
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-secondary-700 mb-1">
-                Job Description
-              </label>
+            <div className="mb-6">
+              <label htmlFor="description" className="block text-secondary-700 font-medium mb-2">Job Description*</label>
               <textarea
                 id="description"
                 name="description"
-                rows={6}
-                required
-                className="input w-full"
                 value={formData.description}
                 onChange={handleChange}
-                placeholder="Describe the role, responsibilities, requirements, and benefits..."
+                required
+                rows="6"
+                className="w-full px-4 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder="Describe the job responsibilities, requirements, and any other relevant details..."
               ></textarea>
             </div>
             
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end">
               <button
                 type="button"
                 onClick={() => navigate('/my-jobs')}
-                className="btn btn-secondary py-2 px-4"
+                className="mr-4 px-6 py-2 border border-secondary-300 text-secondary-700 rounded-md hover:bg-secondary-50 focus:outline-none focus:ring-2 focus:ring-secondary-500"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="btn btn-primary py-2 px-4"
+                className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Posting...
-                  </>
-                ) : (
-                  'Post Job'
-                )}
+                {loading ? 'Posting...' : 'Post Job'}
               </button>
             </div>
           </form>
+        </div>
+        
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <h3 className="text-lg font-medium text-blue-800 mb-2">Note:</h3>
+          <p className="text-blue-700">
+            Your job posting will be reviewed by an administrator before it appears on the job board. 
+            This process typically takes 1-2 business days. You can check the status of your job postings 
+            in the "My Jobs" section.
+          </p>
         </div>
       </div>
     </div>
