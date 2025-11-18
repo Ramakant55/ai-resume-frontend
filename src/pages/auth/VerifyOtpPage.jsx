@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Formik, Form, Field, ErrorMessage } from 'formik';
-import * as Yup from 'yup';
-import axios from 'axios';
+import apiClient from '../../utils/apiClient';
 import { toast } from 'react-toastify';
 
-const OtpSchema = Yup.object().shape({
-  otp: Yup.string()
-    .required('OTP is required')
-    .matches(/^\d{6}$/, 'OTP must be a 6-digit number'),
-});
-
 const VerifyOtpPage = () => {
-  const { verifyOtp, otp, loading } = useAuth();
+  const { otp, verifyOtp } = useAuth();
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(60);
   const navigate = useNavigate();
@@ -42,7 +36,7 @@ const VerifyOtpPage = () => {
 
   const handleResendOtp = async () => {
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/resend-otp`, { email: otp.email });
+      const response = await apiClient.post(`/auth/resend-otp`, { email: otp.email });
       toast.success('OTP resent successfully!');
       setCountdown(60);
     } catch (err) {
@@ -50,83 +44,101 @@ const VerifyOtpPage = () => {
     }
   };
 
+  const formik = useFormik({
+    initialValues: {
+      otp: '',
+    },
+    validationSchema: Yup.object({
+      otp: Yup.string()
+        .required('OTP is required')
+        .length(6, 'OTP must be exactly 6 digits')
+        .matches(/^[0-9]+$/, 'OTP must contain only digits'),
+    }),
+    onSubmit: handleSubmit,
+  });
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary-100 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-primary-600" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-              <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-extrabold text-secondary-900">
-            Verify your email
+      <div className="max-w-md w-full space-y-8 bg-white rounded-xl shadow-lg p-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-secondary-900">
+            Verify Your Email
           </h2>
-          <p className="mt-2 text-sm text-secondary-600">
-            We've sent a 6-digit verification code to{' '}
-            <span className="font-medium">{otp.email || 'your email'}</span>
+          <p className="mt-2 text-center text-sm text-secondary-600">
+            We've sent a 6-digit code to <span className="font-medium">{otp.email}</span>
           </p>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
-            {error}
-          </div>
-        )}
-
-        <Formik
-          initialValues={{ otp: '' }}
-          validationSchema={OtpSchema}
-          onSubmit={handleSubmit}
-        >
-          {({ isSubmitting, errors, touched }) => (
-            <Form className="space-y-6">
-              <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-secondary-700">
-                  Verification Code
-                </label>
-                <div className="mt-1">
-                  <Field
-                    id="otp"
-                    name="otp"
-                    type="text"
-                    placeholder="Enter 6-digit code"
-                    maxLength="6"
-                    className={`input w-full text-center text-lg tracking-widest ${errors.otp && touched.otp ? 'border-red-300 focus:ring-red-500' : ''}`}
-                  />
-                  <ErrorMessage name="otp" component="div" className="mt-1 text-sm text-red-600" />
+        <form className="mt-8 space-y-6" onSubmit={formik.handleSubmit}>
+          {error && (
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">{error}</h3>
                 </div>
               </div>
-
-              <div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || loading}
-                  className="btn btn-primary w-full py-3"
-                >
-                  {isSubmitting || loading ? 'Verifying...' : 'Verify OTP'}
-                </button>
-              </div>
-            </Form>
+            </div>
           )}
-        </Formik>
 
-        <div className="mt-6 text-center">
+          <div>
+            <label htmlFor="otp" className="block text-sm font-medium text-secondary-700">
+              Enter OTP
+            </label>
+            <div className="mt-1">
+              <input
+                id="otp"
+                name="otp"
+                type="text"
+                autoComplete="off"
+                maxLength="6"
+                required
+                className="input w-full text-center text-2xl tracking-widest"
+                value={formik.values.otp}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+              />
+              {formik.touched.otp && formik.errors.otp ? (
+                <p className="mt-2 text-sm text-red-600">{formik.errors.otp}</p>
+              ) : null}
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={formik.isSubmitting}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+            >
+              {formik.isSubmitting ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Verifying...
+                </>
+              ) : (
+                'Verify OTP'
+              )}
+            </button>
+          </div>
+        </form>
+
+        <div className="text-center">
           <p className="text-sm text-secondary-600">
             Didn't receive the code?{' '}
-            {countdown > 0 ? (
-              <span className="text-secondary-500">
-                Resend in {countdown} seconds
-              </span>
-            ) : (
-              <button
-                onClick={handleResendOtp}
-                className="font-medium text-primary-600 hover:text-primary-500"
-              >
-                Resend code
-              </button>
-            )}
+            <button
+              onClick={handleResendOtp}
+              disabled={countdown > 0}
+              className={`font-medium ${countdown > 0 ? 'text-secondary-400 cursor-not-allowed' : 'text-primary-600 hover:text-primary-500'}`}
+            >
+              {countdown > 0 ? `Resend in ${countdown}s` : 'Resend OTP'}
+            </button>
           </p>
         </div>
       </div>

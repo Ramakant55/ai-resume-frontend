@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import { toast } from 'react-toastify';
+import apiClient from '../../utils/apiClient';
 
 const JobsPage = () => {
   const [jobs, setJobs] = useState([]);
@@ -14,7 +14,7 @@ const JobsPage = () => {
       try {
         setLoading(true);
         // Using real API endpoint to fetch jobs from database
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/jobs/get-jobs`);
+        const response = await apiClient.get(`/jobs/get-jobs`);
         console.log('Jobs data received:', response.data);
         setJobs(response.data || []);
         setLoading(false);
@@ -47,7 +47,7 @@ const JobsPage = () => {
   const handleDeleteJob = async (jobId) => {
     if (window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
       try {
-        await axios.delete(`${import.meta.env.VITE_API_URL}/jobs/delete-job/${jobId}`);
+        await apiClient.delete(`/jobs/delete-job/${jobId}`);
         
         // Update the UI
         setJobs(jobs.filter(job => job._id !== jobId));

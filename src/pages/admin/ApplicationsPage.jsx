@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { toast } from 'react-toastify';
+import apiClient from '../../utils/apiClient';
 
 const ApplicationsPage = () => {
   const [applications, setApplications] = useState([]);
@@ -33,7 +33,7 @@ const ApplicationsPage = () => {
         
         // Use the real API endpoint to get all applications with auth token
         console.log("Fetching all applications from admin endpoint...");
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/applications/allapp`, config);
+        const response = await apiClient.get(`/applications/allapp`, config);
         
         // Make sure we're receiving an array of applications
         if (response.data && Array.isArray(response.data)) {
@@ -86,7 +86,7 @@ const ApplicationsPage = () => {
       console.log(`Updating application ${applicationId} to status: ${newStatus}`);
       
       // Make the real API call with auth token
-      const response = await axios.put(`${import.meta.env.VITE_API_URL}/applications/update-status`, {
+      const response = await apiClient.put(`/applications/update-status`, {
         applicationId,
         status: newStatus
       }, config);
@@ -130,7 +130,7 @@ const ApplicationsPage = () => {
       
       const skillsList = skills.split(',').map(skill => skill.trim());
       
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/applications/filter-by-skills`, {
+      const response = await apiClient.post(`/applications/filter-by-skills`, {
         requiredSkills: skillsList
       }, config);
       
@@ -168,7 +168,7 @@ const ApplicationsPage = () => {
         }
       };
       
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/applications/allapp`, config);
+      const response = await apiClient.get(`/applications/allapp`, config);
       setApplications(response.data.applications || response.data);
       setLoading(false);
     } catch (err) {
@@ -183,65 +183,91 @@ const ApplicationsPage = () => {
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
-  // Filter applications based on search term and status
-  const filteredApplications = applications.filter(app => {
-    // Check if we have populated user data
-    const userName = app.userId && app.userId.name ? app.userId.name : 'Unknown';
-    const userEmail = app.userId && app.userId.email ? app.userId.email : 'Unknown';
-    // Check if we have populated job data
-    const jobTitle = app.jobId && app.jobId.title ? app.jobId.title : 'Unknown';
-    const jobCompany = app.jobId && app.jobId.company ? app.jobId.company : 'Unknown';
-    
-    const matchesSearch = 
-      userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      jobCompany.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = filter === 'all' || app.status === filter;
-    
-    return matchesSearch && matchesStatus;
-  });
-
-  // Status badge component with appropriate colors
-  const StatusBadge = ({ status }) => {
-    const getStatusStyles = () => {
-      switch (status.toLowerCase()) {
-        case 'pending':
-          return 'bg-yellow-100 text-yellow-800';
-        case 'reviewed':
-          return 'bg-blue-100 text-blue-800';
-        case 'rejected':
-          return 'bg-red-100 text-red-800';
-        default:
-          return 'bg-secondary-100 text-secondary-800';
-      }
+  // Get status badge with appropriate styling
+  const getStatusBadge = (status) => {
+    const statusStyles = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      shortlisted: 'bg-blue-100 text-blue-800',
+      interviewed: 'bg-purple-100 text-purple-800',
+      hired: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800'
     };
 
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles()}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[status.toLowerCase()] || 'bg-gray-100 text-gray-800'}`}>
+        {status}
       </span>
     );
   };
 
+  // Filter applications based on status and search term
+  const filteredApplications = applications.filter(app => {
+    // Status filter
+    if (filter !== 'all' && app.status?.toLowerCase() !== filter) {
+      return false;
+    }
+    
+    // Search filter
+    if (searchTerm) {
+      const searchValue = searchTerm.toLowerCase();
+      const matchesSearch = 
+        (app.jobId?.title?.toLowerCase().includes(searchValue)) ||
+        (app.jobId?.company?.toLowerCase().includes(searchValue)) ||
+        (app.userId?.name?.toLowerCase().includes(searchValue)) ||
+        (app.userId?.email?.toLowerCase().includes(searchValue));
+      
+      if (!matchesSearch) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-secondary-900 mb-6">Manage Applications</h1>
+    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-secondary-900">All Applications</h1>
+        <p className="text-secondary-600">Manage and review all job applications</p>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">{error}</h3>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters and Search */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex flex-col md:flex-row md:items-end space-y-4 md:space-y-0 md:space-x-4">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          {/* Search Input */}
+          <div>
             <label htmlFor="search" className="block text-sm font-medium text-secondary-700 mb-1">
               Search Applications
             </label>
             <div className="relative">
               <input
-                id="search"
                 type="text"
-                placeholder="Search by name, email, job title..."
+                id="search"
                 className="input w-full pl-10"
+                placeholder="Search by job title, company, applicant name or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -259,229 +285,157 @@ const ApplicationsPage = () => {
               </svg>
             </div>
           </div>
-          
-          <div className="w-full md:w-1/4">
-            <label htmlFor="filter" className="block text-sm font-medium text-secondary-700 mb-1">
-              Status Filter
+
+          {/* Status Filter */}
+          <div>
+            <label htmlFor="status-filter" className="block text-sm font-medium text-secondary-700 mb-1">
+              Filter by Status
             </label>
             <select
-              id="filter"
+              id="status-filter"
               className="input w-full"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             >
-              <option value="all">All Applications</option>
+              <option value="all">All Statuses</option>
               <option value="pending">Pending</option>
-              <option value="reviewed">Reviewed</option>
+              <option value="shortlisted">Shortlisted</option>
+              <option value="interviewed">Interviewed</option>
+              <option value="hired">Hired</option>
               <option value="rejected">Rejected</option>
             </select>
           </div>
-          
-          <div className="flex-1">
+
+          {/* Skills Filter */}
+          <div>
             <label htmlFor="skills" className="block text-sm font-medium text-secondary-700 mb-1">
-              Filter by Skills (Comma Separated)
+              Filter by Skills
             </label>
             <div className="flex">
               <input
-                id="skills"
                 type="text"
-                placeholder="React, Node.js, MongoDB..."
-                className="input w-full"
+                id="skills"
+                className="input flex-1 rounded-r-none"
+                placeholder="Enter skills (comma separated)..."
                 value={skills}
                 onChange={(e) => setSkills(e.target.value)}
               />
               <button
                 onClick={filterBySkills}
-                className="ml-2 btn btn-primary py-2 px-4 flex items-center"
+                className="btn btn-primary rounded-l-none"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
                 Filter
               </button>
             </div>
-            <p className="text-xs text-secondary-500 mt-1">Enter skills to find matching applicants from their resumes</p>
           </div>
-          
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-between items-center">
+          <div className="text-sm text-secondary-600">
+            Showing {filteredApplications.length} of {applications.length} applications
+          </div>
+          <div className="space-x-2">
+            <button
+              onClick={resetFilters}
+              className="btn btn-secondary"
+            >
+              Reset Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Applications List */}
+      {filteredApplications.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-secondary-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <h3 className="text-lg font-medium text-secondary-900 mb-1">No applications found</h3>
+          <p className="text-secondary-600 mb-4">
+            {applications.length === 0 
+              ? "There are no applications yet." 
+              : "No applications match your current filters."}
+          </p>
           <button
             onClick={resetFilters}
-            className="btn btn-secondary py-2 px-4"
+            className="btn btn-primary"
           >
             Reset Filters
           </button>
         </div>
-      </div>
-
-      {/* Display active filters */}
-      {skills && (
-        <div className="mb-4 flex items-center">
-          <span className="text-sm font-medium text-secondary-700 mr-2">Active Skills Filter:</span>
-          <div className="flex flex-wrap gap-2">
-            {skills.split(',').map((skill, index) => (
-              <span key={index} className="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                {skill.trim()}
-              </span>
-            ))}
-          </div>
-          <button 
-            onClick={resetFilters} 
-            className="ml-2 text-sm text-red-600 hover:text-red-800"
-          >
-            Clear
-          </button>
-        </div>
-      )}
-
-      {/* Applications Table */}
-      {loading ? (
-        <div className="text-center py-12">
-          <svg className="animate-spin h-10 w-10 text-primary-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p className="text-secondary-600">Loading applications...</p>
-        </div>
-      ) : error ? (
-        <div className="text-center py-12 text-red-600">
-          <p>{error}</p>
-        </div>
-      ) : filteredApplications.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow-md">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-secondary-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h3 className="text-lg font-medium text-secondary-900 mb-1">No applications found</h3>
-          <p className="text-secondary-600">
-            {searchTerm || skills || filter !== 'all'
-              ? 'Try adjusting your search or filters'
-              : 'There are no job applications yet'}
-          </p>
-        </div>
       ) : (
-        <div className="overflow-x-auto bg-white rounded-lg shadow-md">
-          <table className="min-w-full divide-y divide-secondary-200">
-            <thead className="bg-secondary-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                  Applicant
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                  Job Position
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                  Applied On
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                  Skills
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-secondary-200">
-              {filteredApplications.map((application) => (
-                <tr key={application._id} className="bg-white">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center">
-                        <span className="text-primary-700 font-medium">
-                          {application.userId && application.userId.name 
-                            ? application.userId.name.charAt(0).toUpperCase() 
-                            : '?'}
-                        </span>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-secondary-900">
-                          {application.userId && application.userId.name 
-                            ? application.userId.name 
-                            : 'Unknown User'}
-                        </div>
-                        <div className="text-sm text-secondary-500">
-                          {application.userId && application.userId.email 
-                            ? application.userId.email 
-                            : 'No email available'}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-secondary-900">
-                      {application.jobId && application.jobId.title 
-                        ? application.jobId.title 
-                        : 'Unknown Job'}
-                    </div>
-                    <div className="text-sm text-secondary-500">
-                      {application.jobId && application.jobId.company 
-                        ? application.jobId.company 
-                        : 'Unknown Company'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-500">
-                    {formatDate(application.createdAt || new Date())}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={application.status || 'pending'} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-1">
-                      {application.skills && application.skills.length > 0 ? (
-                        application.skills.slice(0, 3).map((skill, index) => (
-                          <span key={index} className="bg-secondary-100 text-secondary-800 text-xs font-medium px-2 py-0.5 rounded">
-                            {skill}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-secondary-400 text-xs">No skills listed</span>
-                      )}
-                      {application.skills && application.skills.length > 3 && (
-                        <span className="text-secondary-400 text-xs">+{application.skills.length - 3} more</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => toast.info('Viewing resume and application details')}
-                      className="text-primary-600 hover:text-primary-900 mr-2"
-                    >
-                      View
-                    </button>
-                    
-                    <div className="relative inline-block text-left group">
-                      <button className="text-secondary-600 hover:text-secondary-900">
-                        Change Status
-                      </button>
-                      <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10 invisible group-hover:visible">
-                        <div className="py-1">
-                          <button
-                            onClick={() => updateApplicationStatus(application._id, 'pending')}
-                            className="block w-full text-left px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-100"
-                          >
-                            Pending
-                          </button>
-                          <button
-                            onClick={() => updateApplicationStatus(application._id, 'reviewed')}
-                            className="block w-full text-left px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-100"
-                          >
-                            Reviewed
-                          </button>
-                          <button
-                            onClick={() => updateApplicationStatus(application._id, 'rejected')}
-                            className="block w-full text-left px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-100"
-                          >
-                            Rejected
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-secondary-200">
+              <thead className="bg-secondary-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
+                    Applicant
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
+                    Job Title
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
+                    Company
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
+                    Applied On
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-secondary-200">
+                {filteredApplications.map((application) => (
+                  <tr key={application._id} className="hover:bg-secondary-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-secondary-900">
+                        {application.userId?.name || 'Applicant Name Not Available'}
+                      </div>
+                      <div className="text-sm text-secondary-500">
+                        {application.userId?.email || 'Email Not Available'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-secondary-900">
+                        {application.jobId?.title || 'Job Title Not Available'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-500">
+                      {application.jobId?.company || 'Company Not Available'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-500">
+                      {formatDate(application.appliedAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(application.status)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <select
+                          value={application.status}
+                          onChange={(e) => updateApplicationStatus(application._id, e.target.value)}
+                          className="input text-sm"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="shortlisted">Shortlisted</option>
+                          <option value="interviewed">Interviewed</option>
+                          <option value="hired">Hired</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
