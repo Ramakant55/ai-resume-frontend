@@ -6,10 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <title>AI Resume Screener</title>
-    <script type="module" crossorigin src="/assets/index-C7Gjk0r1.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-Bydi8yRM.css">
+    <script type="module" crossorigin src="/assets/index-BHBuNgzm.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CncDXKEr.css">
   </head>
   <body class="font-sans antialiased bg-secondary-50 text-secondary-900">
     <div id="root"></div>
+    <!-- Handle client-side routing for static deployment -->
+    <script>
+      // For GitHub Pages and other static hosting services
+      // If there's a hash-based route, redirect to the proper URL
+      (function() {
+        if (window.location.hash) {
+          const hash = window.location.hash.substring(1);
+          if (hash.startsWith('/')) {
+            window.history.replaceState(null, '', hash);
+            window.location.reload();
+          }
+        }
+      })();
+    </script>
   </body>
 </html>

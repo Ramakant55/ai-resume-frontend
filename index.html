@@ -10,5 +10,19 @@
   <body class="font-sans antialiased bg-secondary-50 text-secondary-900">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- Handle client-side routing for static deployment -->
+    <script>
+      // For GitHub Pages and other static hosting services
+      // If there's a hash-based route, redirect to the proper URL
+      (function() {
+        if (window.location.hash) {
+          const hash = window.location.hash.substring(1);
+          if (hash.startsWith('/')) {
+            window.history.replaceState(null, '', hash);
+            window.location.reload();
+          }
+        }
+      })();
+    </script>
   </body>
 </html>
